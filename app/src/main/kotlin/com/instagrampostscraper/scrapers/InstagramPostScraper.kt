@@ -113,7 +113,7 @@ class InstagramPostScraper {
         }
     }
 
-    fun getIgPostUrls(csrfToken: String, postId: String): JsonWrapper {
+    fun getIgPostUrls(csrfToken: String, postId: String): Pair<MutableList<String>, MutableList<String>> {
 
         val headersBuilder = Headers.Builder()
 
@@ -135,6 +135,7 @@ class InstagramPostScraper {
             "has_threaded_comments" to true
         )
 
+        var responseBody: String? = null
         try {
             val url = HttpUrl.Builder()
                 .scheme("https")
@@ -155,18 +156,56 @@ class InstagramPostScraper {
                 throw IOException("Request failed with code ${response.code}")
             }
 
-            val responseBody = response.body?.string()
+            responseBody = response.body?.string()
                 ?: throw IOException("Empty response body")
-
-            val postData = parseJson(responseBody)
-            println(postData["data"]["xdt_shortcode_media"]["video_url"].toString())
-            throw IOException(".p")
-
-            return parseJson(responseBody)
 
         } catch (e: Exception) {
             println("Error: ${e.message}")
             throw RuntimeException("Error getting post details: ${e.message}")
         }
+
+        val igPostData = parseJson(responseBody)
+
+        var postUrls = mutableListOf<String>()
+        var thumbnailUrls = mutableListOf<String>()
+
+        try {
+            // Single video
+            if ( igPostData["data"]["xdt_shortcode_media"]["__typename"].asString() == "XDTGraphVideo") {
+                postUrls.add(igPostData["data"]["xdt_shortcode_media"]["video_url"].asString())
+                thumbnailUrls.add(igPostData["data"]["xdt_shortcode_media"]["thumbnail_src"].asString())
+            }
+            // Single image
+            else if (igPostData["data"]["xdt_shortcode_media"]["__typename"].asString() == "XDTGraphImage" ) {
+                var imgUrl: String? = null
+                for ( image in igPostData["data"]["xdt_shortcode_media"]["display_resources"] ){
+                    imgUrl = image["src"].asString()
+                }
+                postUrls.add(imgUrl!!)
+                thumbnailUrls.add(igPostData["data"]["xdt_shortcode_media"]["display_resources"][0]["src"].asString()) // In this case, use the smallest display_resources
+            }
+            // Sidecar (multiple images/videos)
+            else if ( igPostData["data"]["xdt_shortcode_media"]["__typename"].asString() == "XDTGraphSidecar" ) {
+                for ( node in igPostData["data"]["xdt_shortcode_media"]["edge_sidecar_to_children"]["edges"] ){
+                    if ( node["node"]["__typename"].asString() == "XDTGraphVideo" ) {
+                        postUrls.add(node["node"]["video_url"].asString())
+                        thumbnailUrls.add(node["node"]["display_resources"][0]["src"].asString())
+                    }
+                    else if ( node["node"]["__typename"].asString() == "XDTGraphImage" ) {
+                        var imgUrl: String? = null
+                        for( image in node["node"]["display_resources"] ){
+                            imgUrl = image["src"].asString() // Last one is generally the best quality
+                        }
+                        postUrls.add(imgUrl!!)
+                        thumbnailUrls.add(node["node"]["display_resources"][0]["src"].asString())
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            println("Error: ${e.message}")
+            throw RuntimeException("Error getting json data: ${e.message}")
+        }
+
+        return Pair(postUrls, thumbnailUrls)
     }
 }
