@@ -208,4 +208,46 @@ class InstagramPostScraper {
 
         return Pair(postUrls, thumbnailUrls)
     }
+
+    fun download(postUrls: List<String>, postId: String): List<String> {
+        val headersBuilder = Headers.Builder()
+        for (i in 0 until headers.size) {
+            headersBuilder.add(headers.name(i), headers.value(i))
+        }
+        headersBuilder.add("referer", "https://www.instagram.com/p/$postId/")
+        val downloadHeaders = headersBuilder.build()
+
+        val downloadedItems = mutableListOf<String>()
+        
+        for (postUrl in postUrls) {
+            try {
+                val request = Request.Builder()
+                    .url(postUrl)
+                    .headers(downloadHeaders)
+                    .build()
+
+                client.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) {
+                        throw IOException("Failed to download file: ${response.code}")
+                    }
+
+                    val filename = postUrl.split("?")[0].split("/").last()
+
+                    val file = File(filename)
+                    file.outputStream().use { fileOutputStream ->
+                        response.body?.byteStream()?.copyTo(fileOutputStream)
+                            ?: throw IOException("Response body is null")
+                    }
+
+                    downloadedItems.add(filename)
+                }
+
+            } catch (e: Exception) {
+                println("Error: ${e.message}")
+                throw RuntimeException("Error downloading file: ${e.message}")
+            }
+        }
+
+        return downloadedItems
+    }
 }
