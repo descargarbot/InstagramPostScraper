@@ -250,4 +250,38 @@ class InstagramPostScraper {
 
         return downloadedItems
     }
+
+    fun getVideoFileSize(videoUrls: List<String>): List<String> {
+        val itemsFileSize = mutableListOf<String>()
+        
+        val headersBuilder = Headers.Builder()
+            .add("Content-Type", "text")
+            .build()
+
+        for (videoUrl in videoUrls) {
+            try {
+                val request = Request.Builder()
+                    .url(videoUrl)
+                    .headers(headersBuilder)
+                    .head()
+                    .build()
+
+                client.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) {
+                        throw IOException("Failed to get file size: ${response.code}")
+                    }
+
+                    val contentLength = response.header("content-length")
+                        ?: throw IOException("Content-Length header not found")
+                    
+                    itemsFileSize.add(contentLength)
+                }
+            } catch (e: Exception) {
+                println("Error: ${e.message}")
+                throw RuntimeException("Error getting file size: ${e.message}")
+            }
+        }
+
+        return itemsFileSize
+    }
 }
