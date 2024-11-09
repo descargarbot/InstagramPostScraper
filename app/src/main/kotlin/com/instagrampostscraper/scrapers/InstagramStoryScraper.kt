@@ -14,6 +14,7 @@ import java.net.InetSocketAddress
 import java.net.Proxy
 import java.util.regex.Pattern
 import kotlin.random.Random
+import java.util.Base64
 
 class InstagramStoryScraper {
     private var client: OkHttpClient
@@ -58,4 +59,60 @@ class InstagramStoryScraper {
         println("Proxy set to $protocol://$ip:$port")
     }
 
+    fun getUsernameStoryId(igStoryUrl: String): Pair<String, String> {
+        if ("/s/" in igStoryUrl) {
+            val code = igHighlightsRegex.find(igStoryUrl)?.groupValues?.get(1)
+                ?: throw IllegalStateException("Error getting short code from highlights")
+                
+            val decoded = String(Base64.getDecoder().decode(code))
+            val storyId = decoded.split(":")[1].replace("'", "")
+            return Pair("highlights", storyId)
+        }
+
+        val match = igStoryRegex.find(igStoryUrl)
+            ?: throw IllegalStateException("Error getting username")
+            
+        val username = match.groupValues[1]
+        var storyId = match.groupValues[2]
+        
+        if (storyId.isEmpty()) {
+            storyId = "3446487468465775665"
+        }
+
+        return Pair(username, storyId)
+    }
+
+    fun getUserIdByUsername(username: String, storyId: String): String {
+        // If it's a highlight, return the highlight ID format
+        if (username == "highlights") {
+            return "highlight:$storyId"  // w/highlights user id is not necessary
+        }
+
+        val request = Request.Builder()
+            .url("https://www.instagram.com/api/v1/users/web_profile_info/?username=$username")
+            .headers(headers)
+            .build()
+
+        var userId = ""
+        try{
+            val response = client.newCall(request).execute()
+            
+            if (!response.isSuccessful) {
+                throw Exception("Failed to get user info: ${response.code}")
+            }
+
+            val responseBody = response.body?.string()
+                ?: throw IOException("Empty response body")
+
+            val jsonRespond = parseJson(responseBody)
+
+            userId = jsonRespond["data"]["user"]["id"].asString()
+
+            return userId
+
+        }catch (e: Exception) {
+            println("Error: ${e.message}")
+            throw RuntimeException("Error getting user id")
+        }
+    }
 }
