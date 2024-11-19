@@ -115,4 +115,69 @@ class InstagramStoryScraper {
             throw RuntimeException("Error getting user id")
         }
     }
+
+    fun igLogin(username: String, password: String) {
+
+        // TODO handle cookies
+        
+        // Get login page first to extract tokens
+        val loginPageRequest = Request.Builder()
+            .url("https://www.instagram.com/accounts/login")
+            .headers(headers)
+            .build()
+
+        try {
+            client.newCall(loginPageRequest).execute().use { response ->
+                val pageContent = response.body?.string() ?: throw Exception("Empty response body")
+                
+                // Extract csrf token
+                val csrfTokenRegex = """\"csrf_token\":\"(\w+)\"""".toRegex()
+                val csrfToken = csrfTokenRegex.find(pageContent)?.groupValues?.get(1)
+                    ?: throw Exception("Could not extract CSRF token")
+
+                // Extract rollout hash
+                val rolloutHashRegex = """\"rollout_hash\":\"(\w+)\"""".toRegex()
+                val rolloutHash = rolloutHashRegex.find(pageContent)?.groupValues?.get(1)
+                    ?: throw Exception("Could not extract rollout hash")
+
+                // Prepare headers for login request
+                val loginHeaders = Headers.Builder()
+                    .addAll(headers)
+                    .add("x-requested-with", "XMLHttpRequest")
+                    .add("x-csrftoken", csrfToken)
+                    .add("x-instagram-ajax", rolloutHash)
+                    .add("referer", "https://www.instagram.com/")
+                    .build()
+
+                // Prepare login payload
+                val loginPayload = FormBody.Builder()
+                    .add("enc_password", "#PWD_INSTAGRAM_BROWSER:0:${(System.currentTimeMillis() / 1000).toInt()}:$password")
+                    .add("username", username)
+                    .add("queryParams", "{}")
+                    .add("optIntoOneTap", "false")
+                    .add("stopDeletionNonce", "")
+                    .add("trustedDeviceRecords", "{}")
+                    .build()
+
+                // Make login request
+                val loginRequest = Request.Builder()
+                    .url("https://www.instagram.com/accounts/login/ajax/")
+                    .headers(loginHeaders)
+                    .post(loginPayload)
+                    .build()
+
+                client.newCall(loginRequest).execute().use { loginResponse ->
+                    if (!loginResponse.isSuccessful) {
+                        throw Exception("Login failed with code: ${loginResponse.code}")
+                    }
+                    
+                    // TODO handle cookies
+                }
+            }
+        } catch (e: Exception) {
+            println("Error during login: ${e.message}")
+            throw RuntimeException("Login failed", e)
+        }
+    }
+    
 }
