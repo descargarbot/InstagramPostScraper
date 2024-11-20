@@ -180,4 +180,41 @@ class InstagramStoryScraper {
         }
     }
     
+    fun getIgStoriesUrls(userId: String): Pair<List<String>, List<String>> {
+        val igStoriesEndpoint = "https://i.instagram.com/api/v1/feed/reels_media/?reel_ids=$userId"
+        
+        val igUrlJson = try {
+            val request = Request.Builder()
+                .url(igStoriesEndpoint)
+                .headers(headers)
+                .build()
+
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) throw IOException("Unexpected code $response")
+                parseJson(response.body?.string() ?: throw IOException("Response body is null"))
+            }
+        } catch (e: Exception) {
+            throw RuntimeException("Error getting JSON stories", e)
+        }
+
+        val storiesUrls = mutableListOf<String>()
+        val thumbnailUrls = mutableListOf<String>()
+
+        try {
+            for (item in igUrlJson["reels"][userId]["items"]) {
+                if (item.containsKey("video_versions")) {
+                    storiesUrls.add(item["video_versions"][0]["url"].asString())
+                    thumbnailUrls.add(item["image_versions2"]["candidates"][0]["url"].asString())
+                } else {
+                    storiesUrls.add(item["image_versions2"]["candidates"][0]["url"].asString())
+                    thumbnailUrls.add(item["image_versions2"]["candidates"][0]["url"].asString())
+                }
+            }
+        } catch (e: Exception) {
+            throw RuntimeException("Error getting URLs stories", e)
+        }
+
+        return Pair(storiesUrls, thumbnailUrls)
+    }
+    
 }
