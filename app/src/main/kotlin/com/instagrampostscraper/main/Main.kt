@@ -31,8 +31,8 @@ fun runInstagramPostScraper(igUrl: String) {
 
 fun runInstagramStoryScraper(igUrl: String) {
     // set ur credencials
-    val username = ""
-    val password = ""
+    val your_username = ""
+    val your_password = ""
   
     val instagramStory = InstagramStoryScraper()
 
@@ -41,7 +41,7 @@ fun runInstagramStoryScraper(igUrl: String) {
 
         val userId = instagramStory.getUserIdByUsername(username, storyId)
 
-        instagramStory.igLogin(username, password)
+        instagramStory.igLogin(your_username, your_password)
 
         val (storiesUrls, thumbnailUrls) = instagramStory.getIgStoriesUrls(userId)
 
