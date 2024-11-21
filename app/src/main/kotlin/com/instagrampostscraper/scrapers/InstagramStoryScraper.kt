@@ -216,5 +216,30 @@ class InstagramStoryScraper {
 
         return Pair(storiesUrls, thumbnailUrls)
     }
+
+    fun download(igVideoUrls: List<String>): List<String> {
+        val pathFilenames = mutableListOf<String>()
+
+        for ( itemUrl in igVideoUrls ){
+            val request = Request.Builder()
+                .url(itemUrl)
+                .headers(headers)
+                .build()
+
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) throw IOException("Unexpected code $response")
+
+                val filename = itemUrl.split("?")[0].split("/").last()
+
+                val file = File(filename)
+                file.outputStream().use { fileOutputStream ->
+                    response.body?.byteStream()?.copyTo(fileOutputStream)
+                }
+                
+                pathFilenames.add(filename)
+            }
+        }
+        return pathFilenames
+    }
     
 }
