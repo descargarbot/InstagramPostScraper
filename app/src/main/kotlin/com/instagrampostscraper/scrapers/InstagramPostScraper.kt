@@ -60,10 +60,79 @@ class InstagramPostScraper {
 
     fun getPostIdByUrl(instagramUrl: String): String {
 
-        val matchResult = instagramRegex.find(instagramUrl)
+        var finalUrl = instagramUrl
+        if (instagramUrl.contains("/share/")) {
+            try {
+                val resolvedUrl = getIgUrlFromShareUrl(instagramUrl)
+                if (resolvedUrl == null) {
+                    throw RuntimeException("Error getting Instagram URL from share URL")
+                }
+                finalUrl = resolvedUrl
+            } catch (e: Exception) {
+                println("Error: ${e.message}")
+                throw RuntimeException("Error getting Instagram URL from share URL")
+            }
+        }
+
+        val matchResult = instagramRegex.find(finalUrl)
             ?: throw IllegalArgumentException("Invalid Instagram URL")
 
         return matchResult.groupValues[2]
+    }
+
+    private fun getIgUrlFromShareUrl(igShareUrl: String): String? {
+        val shareClient = OkHttpClient.Builder()
+            .followRedirects(false)
+            .build()
+
+        val shareHeaders = Headers.Builder()
+            .add("accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8")
+            .add("accept-encoding", "gzip, deflate, br, zstd")
+            .add("accept-language", "es-419,es;q=0.5")
+            .add("priority", "u=0, i")
+            .add("sec-ch-ua", "'Brave';v='131', 'Chromium';v='131', 'Not_A Brand';v='24'")
+            .add("sec-ch-ua-full-version-list", "'Brave';v='131.0.0.0', 'Chromium';v='131.0.0.0', 'Not_A Brand';v='24.0.0.0'")
+            .add("sec-ch-ua-mobile", "?0")
+            .add("sec-ch-ua-model", "''")
+            .add("sec-ch-ua-platform", "'macOS'")
+            .add("sec-ch-ua-platform-version", "'11.7.10'")
+            .add("sec-fetch-dest", "document")
+            .add("sec-fetch-mode", "navigate")
+            .add("sec-fetch-site", "none")
+            .add("sec-fetch-user", "?1")
+            .add("sec-gpc", "1")
+            .add("upgrade-insecure-requests", "1")
+            .add("user-agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36")
+            .build()
+
+        try {
+            val initialRequest = Request.Builder()
+                .url(igShareUrl)
+                .headers(shareHeaders)
+                .build()
+                
+            shareClient.newCall(initialRequest).execute().use { response ->
+                if (response.code == 301) {
+                    val newUrl = response.header("Location") ?: return null
+                    
+                    val redirectRequest = Request.Builder()
+                        .url(newUrl)
+                        .headers(shareHeaders)
+                        .build()
+                        
+                    shareClient.newCall(redirectRequest).execute().use { redirectResponse ->
+                        if (redirectResponse.code in listOf(301, 302)) {
+                            return redirectResponse.header("Location") ?: null
+                        }
+                        return newUrl
+                    }
+                }
+                return null
+            }
+        } catch (e: IOException) {
+            println("Error getting IG URL from share URL: ${e.message}")
+            return null
+        }
     }
 
     fun postIdToPk(postId: String): Long {
