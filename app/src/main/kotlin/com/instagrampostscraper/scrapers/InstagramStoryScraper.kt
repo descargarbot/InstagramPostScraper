@@ -20,7 +20,7 @@ class InstagramStoryScraper {
     private var client: OkHttpClient
     private val headers: Headers
     private val igStoryRegex = """https?://(?:www\.)?instagram\.com/stories/([^/]+)(?:/(\d+))?/?""".toRegex()
-    private val igHighlightsRegex = """(?:https?://)?(?:www\.)?instagram\.com/s/(\w+)\?story_media_id=(\d+)_(\d+)""".toRegex()
+    private val igHighlightsRegex = """(?:https?://)?(?:www\.)?instagram\.com/s/(\w+)(?:\?story_media_id=(\d+)_(\d+))?""".toRegex()
 
     init {
         val cookieManager = CookieManager().apply {
