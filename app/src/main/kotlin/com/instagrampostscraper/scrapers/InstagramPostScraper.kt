@@ -205,6 +205,7 @@ class InstagramPostScraper {
         )
 
         var responseBody: String? = null
+        var response: Response? = null
         try {
             val url = HttpUrl.Builder()
                 .scheme("https")
@@ -219,7 +220,7 @@ class InstagramPostScraper {
                 .headers(finalHeaders)
                 .build()
 
-            val response = client.newCall(request).execute()
+            response = client.newCall(request).execute()
             
             if (!response.isSuccessful) {
                 throw IOException("Request failed with code ${response.code}")
