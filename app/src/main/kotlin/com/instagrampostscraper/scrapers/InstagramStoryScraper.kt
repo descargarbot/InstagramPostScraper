@@ -94,8 +94,9 @@ class InstagramStoryScraper {
             .build()
 
         var userId = ""
+        var response: Response? = null
         try{
-            val response = client.newCall(request).execute()
+            response = client.newCall(request).execute()
             
             if (!response.isSuccessful) {
                 throw Exception("Failed to get user info: ${response.code}")
