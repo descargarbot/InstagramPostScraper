@@ -221,20 +221,18 @@ class InstagramPostScraper {
 
             val response = client.newCall(request).execute()
             
-            try {
-                    if (!response.isSuccessful) {
-                        throw IOException("Request failed with code ${response.code}")
-                    }
-
-                    responseBody = response.body?.string()
-                        ?: throw IOException("Empty response body")
-            } finally {
-                    response.close()
+            if (!response.isSuccessful) {
+                throw IOException("Request failed with code ${response.code}")
             }
+
+            responseBody = response.body?.string()
+                    ?: throw IOException("Empty response body")
 
         } catch (e: Exception) {
             println("Error: ${e.message}")
             throw RuntimeException("Error getting post details: ${e.message}")
+        } finally {
+            response?.close()
         }
 
         val igPostData = parseJson(responseBody)
