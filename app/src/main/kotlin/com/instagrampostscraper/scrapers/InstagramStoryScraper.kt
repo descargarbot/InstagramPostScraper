@@ -113,6 +113,8 @@ class InstagramStoryScraper {
         }catch (e: Exception) {
             println("Error: ${e.message}")
             throw RuntimeException("Error getting user id")
+        } finally {
+            response?.close()
         }
     }
 
